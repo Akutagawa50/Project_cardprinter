@@ -31,10 +31,25 @@ pdf = canvas.Canvas(file_name, (sheet_size_x*mm,sheet_size_y*mm))    # PDFを生
 pdf.setTitle('Card Printe')
 pdf.saveState()    # セーブ
 
-def insert_card(img_path, card_kind): #画像パス，カードの種類
+def insert_card(img_path, card_kind, x, y): #画像パス，カードの種類，x座標，y座標
     width, height = get_size(config_ini['card_size'][card_kind])
-    pdf.drawInlineImage(img_path, (0)*mm, (sheet_size_y-height-0)*mm,width*mm, height*mm)
-    pdf.restoreState()
-    pdf.save()
+    pdf.drawInlineImage(img_path, x*mm, (sheet_size_y-height-y)*mm,width*mm, height*mm)
+    #pdf.restoreState()
 
-insert_card('./imgs/towaryu.jpg', 'duel_masters')
+imgs_path = ['./imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg']
+width, height = get_size(config_ini['card_size']['duel_masters'])
+card_kind = 'duel_masters_ka-nabell'
+for i in range(3):
+    insert_card(imgs_path[0], card_kind, 5, i*(height+5)+5)
+    insert_card(imgs_path[1], card_kind, (sheet_size_x-width)/2.0, i*(height+5)+5)
+    insert_card(imgs_path[2], card_kind, (sheet_size_x-width)-5, i*(height+5)+5)
+
+pdf.showPage()
+insert_card(imgs_path[0], card_kind, 5, 5)
+insert_card(imgs_path[1], card_kind, (sheet_size_x-width)/2.0, 5)
+insert_card(imgs_path[2], card_kind, (sheet_size_x-width)-5, 5)
+
+
+#insert_card('./imgs/erase.png', 'duel_masters', (sheet_size_x-width)/4.0, (sheet_size_y-height)/2.0)
+
+pdf.save()
