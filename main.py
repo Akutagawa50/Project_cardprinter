@@ -8,6 +8,11 @@ import configparser
 # GUI関係
 import PySimpleGUI as sg
 
+# .iniを読み込む
+config_ini = configparser.ConfigParser()
+config_ini.read('config.ini', encoding='utf-8')
+
+
 # 123x456 を 123, 456 に変換する関数
 def get_size(size_str):
     x_index = size_str.find('x')
@@ -17,39 +22,74 @@ def get_size(size_str):
     b = int(size_str[x_index+1:])
     return a,b
 
-# .iniを読み込む
-config_ini = configparser.ConfigParser()
-config_ini.read('config.ini', encoding='utf-8')
+# PDFに画像を挿入する関数
+def insert_card(pdf, img_path, card_size, locate, sheet_size=(210,297)): #pdf, 画像パス，カードの種類，カード中心x座標，カード中心y座標
+    #pdf.drawInlineImage(img_path, locate[0]*mm, (sheet_size[1]-card_size[1]-locate[1])*mm, card_size[0]*mm, card_size[1]*mm)
+    pdf.drawInlineImage(img_path, (locate[0]-card_size[0]/2)*mm, (sheet_size[1]-locate[1]-card_size[1]/2)*mm, card_size[0]*mm, card_size[1]*mm)
 
-# PDFファイルを生成する ###
-file_name = 'card_printer.pdf'  # ファイル名を設定
-sheet_kind = "A4"               # 用紙のサイズ
+def make_pdf(img_paths, img_size, sheet_size = (210, 297), margin = (10,10), filename = 'card_printer.pdf'):
+    # 1ページ内に入る画像の数と画像間のマージンを計算
+    img_num = []
+    img_margin=[]
+    for i in range(2):
+        # 枚数を計算
+        img_num.append(int(sheet_size[i]-2*margin[i]) // int(img_size[i]))
+        
+        # 余白を計算
+        if img_num[i] == 1:
+            # 0割り回避
+            img_margin.append(0.0)
+        else:
+            img_margin.append(((sheet_size[i]-2*margin[i]) % img_size[i])/(img_num[i]-1))
+    
+    # 画像の配置場所の座標を計算
+    img_locate = []
+    for j in range(img_num[1]):
+        for i in range(img_num[0]):
+            # 画像が1枚のときは中央に配置
+            if img_num[0] == 1 and img_num[1] == 1:
+                img_locate.append((sheet_size[0]/2, sheet_size[1]/2))
+                break
+            # 縦横いずれかの画像が1枚のときの処理
+            elif img_num[0] == 1:
+                img_locate.append((sheet_size[0]/2, (margin[1]+img_size[1]/2+j*(img_size[1]+img_margin[1]))))
+            elif img_num[1] == 1:
+                img_locate.append((margin[0]+img_size[0]/2+i*(img_size[0]+img_margin[0]), sheet_size[1]/2))
+            # 縦横の枚数がそれぞれ複数枚のとき
+            else:
+                img_locate.append((margin[0]+img_size[0]/2+i*(img_size[0]+img_margin[0]), (margin[1]+img_size[1]/2+j*(img_size[1]+img_margin[1]))))
 
-sheet_size_x, sheet_size_y = get_size(config_ini['sheet_size'][sheet_kind])
+    # PDFを生成
+    pdf = canvas.Canvas(filename, (sheet_size[0]*mm, sheet_size[1]*mm))    
+    pdf.setTitle('Card Printer')
+    pdf.saveState()    # セーブ
 
-pdf = canvas.Canvas(file_name, (sheet_size_x*mm,sheet_size_y*mm))    # PDFを生成
-pdf.setTitle('Card Printe')
-pdf.saveState()    # セーブ
+    # 画像挿入
+    i=0
+    page = 0
+    all_num = int(img_num[0]*img_num[1])
+    for img_path in img_paths:
+        if i // all_num > page:
+            page += 1
+            pdf.showPage()
+        insert_card(pdf, img_path, img_size, img_locate[i % all_num])
+        i += 1
+    pdf.save()
+    return pdf
 
-def insert_card(img_path, card_kind, x, y): #画像パス，カードの種類，x座標，y座標
-    width, height = get_size(config_ini['card_size'][card_kind])
-    pdf.drawInlineImage(img_path, x*mm, (sheet_size_y-height-y)*mm,width*mm, height*mm)
-    #pdf.restoreState()
+# ファイル名を設定
+filename = 'card_printer.pdf'
 
-imgs_path = ['./imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg']
-width, height = get_size(config_ini['card_size']['duel_masters'])
+# 用紙のサイズ
+sheet_kind = 'A4'
+
+# カードの種類
 card_kind = 'duel_masters_ka-nabell'
-for i in range(3):
-    insert_card(imgs_path[0], card_kind, 5, i*(height+5)+5)
-    insert_card(imgs_path[1], card_kind, (sheet_size_x-width)/2.0, i*(height+5)+5)
-    insert_card(imgs_path[2], card_kind, (sheet_size_x-width)-5, i*(height+5)+5)
 
-pdf.showPage()
-insert_card(imgs_path[0], card_kind, 5, 5)
-insert_card(imgs_path[1], card_kind, (sheet_size_x-width)/2.0, 5)
-insert_card(imgs_path[2], card_kind, (sheet_size_x-width)-5, 5)
+# 画像の場所
+img_paths = ['./imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg', './imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg', './imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg', './imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg']
 
+sheet_size= get_size(config_ini['sheet_size'][sheet_kind])
+card_size = get_size(config_ini['card_size'][card_kind])
 
-#insert_card('./imgs/erase.png', 'duel_masters', (sheet_size_x-width)/4.0, (sheet_size_y-height)/2.0)
-
-pdf.save()
+make_pdf(img_paths, card_size, sheet_size, margin=(5,5), filename = filename)
