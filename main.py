@@ -6,12 +6,26 @@ from reportlab.lib.units import mm
 import configparser
 
 # GUI関係
+import io
 import PySimpleGUI as sg
+from PIL import Image, ImageTk
 
 # .iniを読み込む
 config = configparser.ConfigParser()
 config.read('config.ini', encoding='utf-8')
 
+def get_img_data(f, maxsize=(600, 450), first=False):
+    """Generate image data using PIL
+    """
+    #print("open file:", f)
+    img = Image.open(f)
+    img.thumbnail(maxsize)
+    if first:  # tkinter is inactive the first time
+        bio = io.BytesIO()
+        img.save(bio, format="PNG")
+        del img
+        return bio.getvalue()
+    return ImageTk.PhotoImage(img)
 
 # 123x456 を 123, 456 に変換する関数
 def get_size(size_str):
@@ -78,24 +92,15 @@ def make_pdf(img_paths, img_size, sheet_size = (210, 297), margin = (10,10), fil
     return pdf
 
 
-layout = [[sg.Text('Card Printer')]]
-input_key = []
-pulldown_key = []
-delete_key = []
-for i in range(1,20,2):
-    layout.append([sg.Text((str(i).rjust(2)+'枚目').rjust(4, '　')), sg.Input(key='input'+str(i)), \
-        sg.Text('枚数', size=(4, 1)),sg.Combo(list(range(1,10)), default_value=1,size=(5, 1), key='pulldown'+str(i)), sg.Button('削除', key='delete'+str(i)),\
-        sg.Text((str(i+1).rjust(2)+'枚目').rjust(4, '　')), sg.Input(key='input'+str(i+1)), \
-        sg.Text('枚数', size=(4, 1)),sg.Combo(list(range(1,10)), default_value=1,size=(5, 1), key='pulldown'+str(i+1)), sg.Button('削除', key='delete'+str(i+1))])
-    input_key.append('input'+str(i))
-    input_key.append('input'+str(i+1))
-    pulldown_key.append('pulldown'+str(i))
-    pulldown_key.append('pulldown'+str(i+1))
-    delete_key.append('delete'+str(i))
-    delete_key.append('delete'+str(i+1))
-layout.append([sg.Button('印刷'), sg.Button('クリア'), sg.Button('終了')])
+layout = [[sg.Text('Card Printer')],\
+    [sg.Text('用紙サイズ'), sg.Combo(list(config['sheet_size'].keys()), default_value='a4',size=(25, 1), key='sheet_pulldown')],\
+    [sg.Text('カード種類'), sg.Combo(list(config['card_size'].keys()), default_value='duel_masters_ka-nabell',size=(25, 1), key='card_pulldown')],\
+    [sg.Text('画像')],\
+    [sg.Image(data = get_img_data('./imgs/null.png', first=True)), ],\
+    [sg.Button('＜'), sg.Button('＞')],\
+    [sg.Button('印刷'), sg.Button('クリア'), sg.Button('終了')]]
 
-window = sg.Window('画面を表示',layout)
+window = sg.Window('画面を表示',layout, size = (500,600))
 
 # イベントループ
 while True:
@@ -103,10 +108,12 @@ while True:
     if event == sg.WIN_CLOSED or event == '終了':
         break
     elif event == 'クリア':
-        for key in input_key:
-             window[key].update('')
-        
-
+        window['sheet_pulldown'].update('a4')
+        window['card_pulldown'].update('duel_masters_ka-nabell')
+    elif event == '＞':
+        pass
+    elif event == '＜':
+        pass
 # ファイル名を設定
 filename = 'card_printer.pdf'
 
@@ -115,9 +122,13 @@ sheet_kind = 'A4'
 
 # カードの種類
 card_kind = 'duel_masters_ka-nabell'
+#card_kind = 'duel_masters_jumbo'
 
 # 画像の場所
-img_paths = ['./imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg', './imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg', './imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg', './imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg']
+img_paths = []
+for i in range(4,7):
+    for j in range(5):
+        img_paths.append('./imgs/' + str(i) + '.jpg')
 
 sheet_size= get_size(config['sheet_size'][sheet_kind])
 card_size = get_size(config['card_size'][card_kind])
