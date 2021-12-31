@@ -14,7 +14,7 @@ from PIL import Image, ImageTk
 config = configparser.ConfigParser()
 config.read('config.ini', encoding='utf-8')
 
-def get_img_data(f, maxsize=(600, 450), first=False):
+def get_img_data(f, maxsize=(300, 300), first=False):
     """Generate image data using PIL
     """
     #print("open file:", f)
@@ -37,11 +37,11 @@ def get_size(size_str):
     return a,b
 
 # PDFに画像を挿入する関数
-def insert_card(pdf, img_path, card_size, locate, sheet_size=(210,297)): #pdf, 画像パス，カードの種類，カード中心x座標，カード中心y座標
-    #pdf.drawInlineImage(img_path, locate[0]*mm, (sheet_size[1]-card_size[1]-locate[1])*mm, card_size[0]*mm, card_size[1]*mm)
-    pdf.drawInlineImage(img_path, (locate[0]-card_size[0]/2)*mm, (sheet_size[1]-locate[1]-card_size[1]/2)*mm, card_size[0]*mm, card_size[1]*mm)
+def insert_img(pdf, img_path, img_size, locate, sheet_size=(210,297)): #pdf, 画像パス，カードの種類，カード中心x座標，カード中心y座標
+    #pdf.drawInlineImage(img_path, locate[0]*mm, (sheet_size[1]-img_size[1]-locate[1])*mm, img_size[0]*mm, img_size[1]*mm)
+    pdf.drawInlineImage(img_path, (locate[0]-img_size[0]/2)*mm, (sheet_size[1]-locate[1]-img_size[1]/2)*mm, img_size[0]*mm, img_size[1]*mm)
 
-def make_pdf(img_paths, img_size, sheet_size = (210, 297), margin = (10,10), filename = 'card_printer.pdf'):
+def make_pdf(img_paths, img_size, pdf = None,sheet_size = (210, 297), margin = (10,10), filename = 'img_printer.pdf'):
     # 1ページ内に入る画像の数と画像間のマージンを計算
     img_num = []
     img_margin=[]
@@ -74,9 +74,10 @@ def make_pdf(img_paths, img_size, sheet_size = (210, 297), margin = (10,10), fil
                 img_locate.append((margin[0]+img_size[0]/2+i*(img_size[0]+img_margin[0]), (margin[1]+img_size[1]/2+j*(img_size[1]+img_margin[1]))))
 
     # PDFを生成
-    pdf = canvas.Canvas(filename, (sheet_size[0]*mm, sheet_size[1]*mm))    
-    pdf.setTitle('Card Printer')
-    pdf.saveState()    # セーブ
+    if pdf == None:
+        pdf = canvas.Canvas(filename, (sheet_size[0]*mm, sheet_size[1]*mm))    
+        pdf.setTitle('img Printer')
+        pdf.saveState()    # セーブ
 
     # 画像挿入
     i=0
@@ -86,51 +87,115 @@ def make_pdf(img_paths, img_size, sheet_size = (210, 297), margin = (10,10), fil
         if i // all_num > page:
             page += 1
             pdf.showPage()
-        insert_card(pdf, img_path, img_size, img_locate[i % all_num])
+        insert_img(pdf, img_path, img_size, img_locate[i % all_num])
         i += 1
     pdf.save()
     return pdf
 
 
-layout = [[sg.Text('Card Printer')],\
-    [sg.Text('用紙サイズ'), sg.Combo(list(config['sheet_size'].keys()), default_value='a4',size=(25, 1), key='sheet_pulldown')],\
-    [sg.Text('カード種類'), sg.Combo(list(config['card_size'].keys()), default_value='duel_masters_ka-nabell',size=(25, 1), key='card_pulldown')],\
-    [sg.Text('画像')],\
-    [sg.Image(data = get_img_data('./imgs/null.png', first=True)), ],\
+layout = [\
+    [sg.Text('用紙サイズ'), sg.Combo(list(config['sheet_size'].keys()), default_value='a4',size=(25, 1), key='sheet_pulldown', readonly=True)],\
+    [sg.Text('カード種類'), sg.Combo(list(config['img_size'].keys()), default_value='duel_masters_ka-nabell',size=(25, 1), key='img_pulldown', readonly=True)],\
+    [sg.Text('No 1', key = 'img_no')],\
+    [sg.Text('画像'), sg.InputText(key = 'img_path', size = (25,1), enable_events=True, readonly=True), sg.FileBrowse(key="file1")],\
+    [sg.Text('枚数'), sg.Combo(list(range(1,11)), default_value=0, size=(25, 1), key='imgnum_pulldown', enable_events=True, readonly=True)],\
+    [sg.Image(data = get_img_data('./imgs/null.png', first=True), key = 'image_display')],\
     [sg.Button('＜'), sg.Button('＞')],\
-    [sg.Button('印刷'), sg.Button('クリア'), sg.Button('終了')]]
+    [sg.Button('印刷'), sg.Button('クリア'), sg.Button('すべてクリア'), sg.Button('終了')]]
 
-window = sg.Window('画面を表示',layout, size = (500,600))
+window = sg.Window('Image Printer',layout, size = (350,550))
 
 # イベントループ
+img_no = 0
+img_paths = []
+img_num = []
 while True:
     event, values = window.read()
+    print(event, values)
     if event == sg.WIN_CLOSED or event == '終了':
         break
     elif event == 'クリア':
         window['sheet_pulldown'].update('a4')
-        window['card_pulldown'].update('duel_masters_ka-nabell')
+        window['img_pulldown'].update('duel_masters_ka-nabell')
+        try:
+            img_paths.pop(img_no)
+            img_num.pop(img_no)
+            window['image_display'].Update(data = get_img_data(img_paths[img_no]))
+            window['img_path'].update(img_paths[img_no])
+            window['imgnum_pulldown'].update(img_num[img_no]+1) 
+            #window['imgnum_pulldown'].Update(value = '1') 
+        except:
+            window['image_display'].Update(data = get_img_data('./imgs/null.png'))
+            window['img_path'].update('')
+            window['imgnum_pulldown'].update(0)
+
+
+    elif event == 'すべてクリア':
+        window['sheet_pulldown'].update('a4')
+        window['img_pulldown'].update('duel_masters_ka-nabell')
+        window['img_path'].update('')
+        window['imgnum_pulldown'].update(0)
+        window['image_display'].Update(data = get_img_data('./imgs/null.png'))
+        window['img_no'].update('No 1')
+        img_no = 0
+        img_paths = []
+        img_num = []
+            
     elif event == '＞':
-        pass
+        if len(img_paths) >= img_no:
+            img_no += 1
+            window['img_no'].update('No ' + str(img_no+1))
+            try:
+                window['image_display'].Update(data = get_img_data(img_paths[img_no]))
+                window['imgnum_pulldown'].update(img_num[img_no]+1)
+                window['img_path'].update(img_paths[img_no])
+                #window['imgnum_pulldown'].Update(value = '1') 
+            except:
+                window['image_display'].Update(data = get_img_data('./imgs/null.png'))
+                window['sheet_pulldown'].update('a4')
+                window['img_pulldown'].update('duel_masters_ka-nabell')
+                window['img_path'].update('')
+                window['imgnum_pulldown'].update(0)
+                window['image_display'].Update(data = get_img_data('./imgs/null.png'))
+
+        
     elif event == '＜':
-        pass
-# ファイル名を設定
-filename = 'card_printer.pdf'
+        if img_no > 0:
+            img_no -= 1
+            window['image_display'].Update(data = get_img_data(img_paths[img_no]))
+            window['imgnum_pulldown'].update(img_num[img_no]+1)
+            window['img_no'].update('No ' + str(img_no+1))
+            window['img_path'].update(img_paths[img_no])
+            #window['imgnum_pulldown'].Update(value = '1') 
 
-# 用紙のサイズ
-sheet_kind = 'A4'
-
-# カードの種類
-card_kind = 'duel_masters_ka-nabell'
-#card_kind = 'duel_masters_jumbo'
-
-# 画像の場所
-img_paths = []
-for i in range(4,7):
-    for j in range(5):
-        img_paths.append('./imgs/' + str(i) + '.jpg')
-
-sheet_size= get_size(config['sheet_size'][sheet_kind])
-card_size = get_size(config['card_size'][card_kind])
-
-make_pdf(img_paths, card_size, sheet_size, margin=(5,5), filename = filename)
+    elif event == 'img_path':
+        try:
+            window['image_display'].Update(data = get_img_data(values['img_path']))
+            window['imgnum_pulldown'].Update(value = '1')
+            if len(img_paths) > 0 and len(img_paths) > img_no: 
+                img_paths[img_no] = values['img_path']
+                img_num[img_no] = 1
+            else:
+                img_paths.append(values['img_path'])
+                img_num.append(1)
+        except:
+            window['image_display'].Update(data = get_img_data('./imgs/error.png'))
+            window['imgnum_pulldown'].Update(value = '0')
+    
+    elif event == 'imgnum_pulldown':
+        try:
+            img_num[img_no] = int(values['imgnum_pulldown'])
+        except:
+            window['imgnum_pulldown'].Update(0)
+    
+    elif event == '印刷':
+        print_imgs = []
+        for i in range(len(img_paths)):
+            for j in range(img_num[i]):
+                print_imgs.append(img_paths[i])
+        img_size = get_size(config['img_size'][values['img_pulldown']])
+        sheet_size= get_size(config['sheet_size'][values['sheet_pulldown']])
+        print(img_size, sheet_size)
+        filename = 'img_printer.pdf'
+        make_pdf(img_paths=print_imgs, img_size = img_size, sheet_size = sheet_size, margin=(5,5), filename = filename)
+        
