@@ -9,8 +9,8 @@ import configparser
 import PySimpleGUI as sg
 
 # .iniを読み込む
-config_ini = configparser.ConfigParser()
-config_ini.read('config.ini', encoding='utf-8')
+config = configparser.ConfigParser()
+config.read('config.ini', encoding='utf-8')
 
 
 # 123x456 を 123, 456 に変換する関数
@@ -77,6 +77,36 @@ def make_pdf(img_paths, img_size, sheet_size = (210, 297), margin = (10,10), fil
     pdf.save()
     return pdf
 
+
+layout = [[sg.Text('Card Printer')]]
+input_key = []
+pulldown_key = []
+delete_key = []
+for i in range(1,20,2):
+    layout.append([sg.Text((str(i).rjust(2)+'枚目').rjust(4, '　')), sg.Input(key='input'+str(i)), \
+        sg.Text('枚数', size=(4, 1)),sg.Combo(list(range(1,10)), default_value=1,size=(5, 1), key='pulldown'+str(i)), sg.Button('削除', key='delete'+str(i)),\
+        sg.Text((str(i+1).rjust(2)+'枚目').rjust(4, '　')), sg.Input(key='input'+str(i+1)), \
+        sg.Text('枚数', size=(4, 1)),sg.Combo(list(range(1,10)), default_value=1,size=(5, 1), key='pulldown'+str(i+1)), sg.Button('削除', key='delete'+str(i+1))])
+    input_key.append('input'+str(i))
+    input_key.append('input'+str(i+1))
+    pulldown_key.append('pulldown'+str(i))
+    pulldown_key.append('pulldown'+str(i+1))
+    delete_key.append('delete'+str(i))
+    delete_key.append('delete'+str(i+1))
+layout.append([sg.Button('印刷'), sg.Button('クリア'), sg.Button('終了')])
+
+window = sg.Window('画面を表示',layout)
+
+# イベントループ
+while True:
+    event, values = window.read()
+    if event == sg.WIN_CLOSED or event == '終了':
+        break
+    elif event == 'クリア':
+        for key in input_key:
+             window[key].update('')
+        
+
 # ファイル名を設定
 filename = 'card_printer.pdf'
 
@@ -89,7 +119,7 @@ card_kind = 'duel_masters_ka-nabell'
 # 画像の場所
 img_paths = ['./imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg', './imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg', './imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg', './imgs/1.jpg', './imgs/2.jpg', './imgs/3.jpg']
 
-sheet_size= get_size(config_ini['sheet_size'][sheet_kind])
-card_size = get_size(config_ini['card_size'][card_kind])
+sheet_size= get_size(config['sheet_size'][sheet_kind])
+card_size = get_size(config['card_size'][card_kind])
 
 make_pdf(img_paths, card_size, sheet_size, margin=(5,5), filename = filename)
