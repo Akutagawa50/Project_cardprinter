@@ -90,7 +90,8 @@ _null_img_path = [os.getcwd(), 'imgs', 'null.png']
 null_img_path = os.path.join(*_null_img_path)
 _error_img_path = [os.getcwd(), 'imgs', 'error.png']
 error_img_path = os.path.join(*_error_img_path)
-print(null_img_path+'\n'+error_img_path)
+_icon_img_path = [os.getcwd(), 'imgs', 'icon.ico']
+icon_img_path = os.path.join(*_icon_img_path)
 layout = [\
     [sg.Text('用紙サイズ'), sg.Combo(list(config['sheet_size'].keys()), default_value='a4',size=(25, 1), key='sheet_pulldown', readonly=True)],\
     [sg.Text('カード種類'), sg.Combo(list(config['img_size'].keys()), default_value='duel_masters_ka-nabell',size=(25, 1), key='img_pulldown', readonly=True)],\
@@ -104,7 +105,7 @@ layout = [\
     [sg.Button('PDF化'), sg.Button('クリア'), sg.Button('すべてクリア'), sg.Button('終了')],\
     [sg.Text('', key='message')]]
 
-window = sg.Window('Image Printer',layout, size = (350,600))
+window = sg.Window('Image Printer',layout, size = (350,600), icon=icon_img_path)
 
 # イベントループ
 img_no = 0
@@ -158,8 +159,6 @@ while True:
                 #window['imgnum_pulldown'].Update(value = '1') 
             except:
                 window['image_display'].Update(data = get_img_data(null_img_path))
-                window['sheet_pulldown'].update('a4')
-                window['img_pulldown'].update('duel_masters_ka-nabell')
                 window['img_path'].update('')
                 window['imgnum_pulldown'].update(0)
                 window['image_display'].Update(data = get_img_data(null_img_path))
@@ -201,26 +200,30 @@ while True:
         if len(img_paths) == 0:
             window['message'].update('PDF化できる画像がありません')
         else:
-            print_imgs = []
-            for i in range(len(img_paths)):
-                for j in range(img_num[i]):
-                    print_imgs.append(img_paths[i])
-            img_size = get_size(config['img_size'][values['img_pulldown']])
-            sheet_size= get_size(config['sheet_size'][values['sheet_pulldown']])
-            if values['PDF_filename'] == 'img_printer':
-                dt_now = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-                filename = os.path.join(config['file']['download_dir'], 'img_printer_' + dt_now + '.pdf')
-            else:
-                filename = os.path.join(config['file']['download_dir'] , values['PDF_filename'] + '.pdf')
-            make_pdf(img_paths=print_imgs, img_size = img_size, sheet_size = sheet_size, margin=(5,5), filename = filename)
-            window['message'].update('PDF化しました')
-            window['sheet_pulldown'].update('a4')
-            window['img_pulldown'].update('duel_masters_ka-nabell')
-            window['img_path'].update('')
-            window['imgnum_pulldown'].update(0)
-            window['image_display'].Update(data = get_img_data(null_img_path))
-            window['img_no'].update('No 1')
-            window['PDF_filename'].update('img_printer')
-            img_no = 0
-            img_paths = []
-            img_num = []
+            try:
+                print_imgs = []
+                for i in range(len(img_paths)):
+                    for j in range(img_num[i]):
+                        print_imgs.append(img_paths[i])
+                img_size = get_size(config['img_size'][values['img_pulldown']])
+                sheet_size= get_size(config['sheet_size'][values['sheet_pulldown']])
+                if values['PDF_filename'] == 'img_printer':
+                    dt_now = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+                    filename = os.path.join(config['file']['download_dir'], 'img_printer_' + dt_now + '.pdf')
+                else:
+                    filename = os.path.join(config['file']['download_dir'] , values['PDF_filename'] + '.pdf')
+                make_pdf(img_paths=print_imgs, img_size = img_size, sheet_size = sheet_size, margin=(5,5), filename = filename)
+                window['message'].update('PDF化しました')
+                window['sheet_pulldown'].update('a4')
+                window['img_pulldown'].update('duel_masters_ka-nabell')
+                window['img_path'].update('')
+                window['imgnum_pulldown'].update(0)
+                window['image_display'].Update(data = get_img_data(null_img_path))
+                window['img_no'].update('No 1')
+                window['PDF_filename'].update('img_printer')
+                img_no = 0
+                img_paths = []
+                img_num = []
+            except:
+                window['message'].update('PDF化に失敗しました')    
+            
